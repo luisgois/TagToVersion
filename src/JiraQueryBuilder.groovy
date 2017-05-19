@@ -15,7 +15,7 @@ class JiraQueryBuilder  {
     private String[] resolution
     private JiraStatus[] status
     private String[] labels
-    private String fixVersion
+    private String[] fixVersions
     private String orderBy
 
     /**
@@ -63,8 +63,8 @@ class JiraQueryBuilder  {
         return this
     }
 
-    JiraQueryBuilder withFixVersion(String fixVersion) {
-        this.fixVersion = fixVersion
+    JiraQueryBuilder withFixVersion(String... fixVersions) {
+        this.fixVersions = fixVersions
         return this
     }
 
@@ -109,8 +109,8 @@ class JiraQueryBuilder  {
             jql += " AND labels in (${labels.join(',')})"
         }
 
-        if (fixVersion) {
-            jql += " AND fixVersion = \"${fixVersion}\""
+        if (fixVersions) {
+            jql += " AND fixVersion in (${fixVersions.join(',')})"
         }
 
         if (orderBy) {

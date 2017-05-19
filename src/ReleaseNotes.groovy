@@ -10,7 +10,7 @@ import org.apache.commons.cli.Option
 
 cli.with {
     h(longOpt: 'help', 'print this message', required: false)
-    f(longOpt: 'fixVersion', 'version where issue was implemented', args: 1, required: true)
+    f(longOpt: 'fixVersion', 'version where issue was implemented', args: Option.UNLIMITED_VALUES, required: true)
     p(longOpt: 'project', 'project where issue belongs to', args:1, required:true )
 //z(longOpt: 'zip', 'Zip Codes (separated by comma)', required: true, args: Option.UNLIMITED_VALUES, valueSeparator: ',')
 }
@@ -20,25 +20,29 @@ def opt = cli.parse(args)
 if (!opt) return
 if (opt.h) cli.usage()
 
-def fixVersion = opt.f
+def fixVersion = opt.fs
 def project = opt.p
+
+// TODO multiple projects, status and versions in same JQL
+String[] fixVersions= new String[fixVersion.size()];
+fixVersions = fixVersion.toArray(fixVersions);
+
 
 String jql = new JiraQueryBuilder(project)
             .withStatus(JiraStatus.DONE)
-            .withFixVersion(fixVersion)
+            .withFixVersion(fixVersions)
             .build()
 
-JiraRESTClient client = JiraRESTClient.create('goi', 'Bellini2229')
+JiraRESTClient jira = JiraRESTClient.create()
 
 println "\nQuerying with JQL:\n${jql}\n"
 
-def results = client.search(jql)
+def results = jira.search(jql)
 
 results.data.issues.each { issue ->
-    def url = JiraRESTClient.DEFAULT_JIRA_URL + "/browse/${issue.key}"
     def text = "${issue.key}: ${issue.fields.summary}"
 
-    println "${text} - ${url}"
+    println "${text}"
 }
 
 println "\nPrinted ${results.data.total} issues from query:"

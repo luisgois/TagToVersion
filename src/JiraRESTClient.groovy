@@ -1,180 +1,52 @@
 // require(groupId:'org.codehaus.groovy.modules.http-builder', artifactId:'http-builder', version:'0.5.2')
 import net.sf.json.groovy.*
 import groovyx.net.http.RESTClient
+import org.apache.http.HttpRequest
+import org.apache.http.HttpRequestInterceptor
+
+import javax.xml.ws.spi.http.HttpContext
+import java.util.Base64;
 
 /**
  * JIRA REST client wrapper around groovyx.net.http.RESTClient
  */
+
 class JiraRESTClient extends groovyx.net.http.RESTClient {
 
-    class Version {
-        String name
-        String description
-        String project
-        JiraRESTClient jira
 
-        Version (String project, String name, String description, JiraRESTClient jira) {
-            this.project = project
-            this.name = name
-            this.jira = jira
-            this.description = description
-
-            add()
-        }
-
-        Version (String project, String name, JiraRESTClient jira) {
-            Version (project, name, null, jira)
-        }
-
-
-        // add version to JIRA
-        String add() {
-            // url: /rest/api/2/project/%s/versions
-            def response = jira.get("/rest/api/2/project/${jira.project}/versions")
-
-            def found
-            response.each{ version ->
-                if (name == version) {
-                    found = version
-                }
-            }
-
-            if (found == name) {
-                log.info ("Version ${this.name} already exists!")
-            }
-            else {
-                log.info ("Adding new version ${this.name} to project ${this.project} ...")
-
-                /* Example JSON payload for a version creation:
-                {
-                    "description": "An excellent version",
-                    "name": "New Version 1",
-                    "archived": false,
-                    "released": true,
-                    "releaseDate": "2010-07-06",
-                    "userReleaseDate": "6/Jul/2010",
-                    "project": "PXA",
-                    "projectId": 10000
-                }
-                 */
-
-                def jsonBody = [description: description, name: name, archived: false, released: true, releaseDate: new Date().format( 'yyyy-MM-dd' ), project: project]
-                jira.post(path: "/rest/api/2/version", body: jsonBody) { resp ->
-                    println "POST response status: ${resp.statusLine}"
-                    assert resp.statusLine.statusCode == 201
-                }
-            }
-
-            /*//Create a json body with all tested fields
-            def jsonBody = [:]
-            // Test title
-            jsonBody.put("title", "Test title")
-            // Test parentID
-            jsonBody.put("parentId", "4f5fc39de4b098845cbcb45e")*/
-        }
-
-        // TODO affect and fix in one common function for the post and error check
-
-        def affect(Issue issue) {
-            def key = issue.key
-
-            log.info ("Version ${this.name} is a affectVersion for ${this.project}.${issueKey} ...")
-
-            // update issue, appending version to fixVersion of identified issueKey
-            String jsonBody = String.format(
-                    "{\"update\":{\"affectVersions\":[{\"add\":{\"name\":\"%s\",\"project\":\"%s\"}}]}}",
-                    this.name,
-                    this.project);
-            jira.post(path: "/rest/api/2/issue/" + issueKey, jsonBody) { resp ->
-                println "POST response status: ${resp.statusLine}"
-                assert resp.statusLine.statusCode == 201
-            }
-        }
-
-        def fix(Issue issue) {
-            def key = issue.key
-
-            log.info ("Version ${this.name} is a fixVersion for ${this.project}.${issueKey} ...")
-
-            // update issue, appending version to fixVersion of identified issueKey
-            String jsonBody = String.format(
-                    "{\"update\":{\"fixVersions\":[{\"add\":{\"name\":\"%s\",\"project\":\"%s\"}}]}}",
-                    this.name,
-                    this.project);
-            jira.post(path: "/rest/api/2/issue/" + issueKey, jsonBody) { resp ->
-                println "POST response status: ${resp.statusLine}"
-                assert resp.statusLine.statusCode == 201
-            }
-        }
-    }
-
-    class Issue {
-        String key
-        JiraRESTClient jira
-
-        def getProjectKey() {
-            return key.substring(1, key.indexOf('-'))
-        }
-        def fixVersion(String versionName) {
-            Version version = new Version(getProjectKey(), versionName, jira)
-            version.fix(this)
-        }
-
-        def affectVersion(String versionName) {
-            // append version to affectVersion
-            Version version = new Version(getProjectKey(), versionName, jira)
-            version.affect(this)
-        }
-    }
-
-    final static String DEFAULT_JIRA_URL = "http://gramme.cfmu.corp.eurocontrol.int:8580"
-    final static String DEFAULT_SEARCH_URL = "${DEFAULT_JIRA_URL}/rest/api/latest/"
-
-    String username
-    String password
-    String project
     def credentials = [:]
 
     private JiraRESTClient(String url, String username, String password) {
         super(url)
-        assert username
-        assert password
+
+        // Use basic authentication
+        // TODO use Oauth
+        String base64Credentials = new String(Base64.getEncoder().encode("${username}:${password}".getBytes()))
+        setHeaders([Authorization: "Basic ${base64Credentials}"])
+        auth.basic username, password
 
         log.debug "Created for user=${username}, url=" + url
-        this.username = username;
-        this.password = password;
 
-        credentials['os_username'] = this.username
-        credentials['os_password'] = this.password
     }
 
     /**
-     * Create a REST client using provided JIRA username and password.
+     * Create a REST client
      */
-    static JiraRESTClient create(String username, String password) {
+    static JiraRESTClient create() {
 
-        return new JiraRESTClient(this.DEFAULT_SEARCH_URL, username, password)
-    }
-
-    /**
-     * Create a REST client using Maven properties jira.username and jira.password for JIRA username and password.
-     */
-    static JiraRESTClient create(def project) {
-
-        String jiraUsername = project.properties['jira.username']
-        String jiraPassword = project.properties['jira.password']
-
-        if (!jiraUsername?.trim()) {
-            throw new IllegalArgumentException("Empty property: jira.username")
+        Properties properties = new Properties()
+        File propertiesFile = new File(System.env.HOME + "/.acm/acm.properties")
+        propertiesFile.withInputStream {
+            properties.load(it)
         }
 
-        if (!jiraPassword?.trim()) {
-            throw new IllegalArgumentException("Empty property: jira.password")
-        }
+        String defaultJiraUrl = properties.DEFAULT_JIRA_URL
+        String defaultJiraSearchUrl = "${defaultJiraUrl}/rest/api/latest/"
+        String defaultUsername = properties.DEFAULT_USERNAME
+        String defaultPassword = properties.DEFAULT_PASSWORD
 
-        return create(jiraUsername, jiraPassword)
+        return new JiraRESTClient(defaultJiraSearchUrl, defaultUsername, defaultPassword)
     }
-
 
     /**
      * Search JIRA multiple values for the field specified in the path
@@ -199,7 +71,7 @@ class JiraRESTClient extends groovyx.net.http.RESTClient {
         try {
             def response
             if (query == "") {
-                response = get(path: path, contentType: "application/json", query: query)
+                response = get(path: path, contentType: "application/json")
             }
             else {
                 response = get(path: path, contentType: "application/json", query: query)
@@ -208,7 +80,6 @@ class JiraRESTClient extends groovyx.net.http.RESTClient {
             assert response.status == 200
             return response
         } catch (groovyx.net.http.HttpResponseException e) {
-        //} catch (Exception e) {
             if (e.response.status == 400) {
                 // HTTP 400: Bad Request, JIRA returned error
                 throw new IllegalArgumentException("JIRA query failed, response data=${e.response.data}", e)
@@ -219,13 +90,19 @@ class JiraRESTClient extends groovyx.net.http.RESTClient {
         }
     }
 
-    def post(String path, def body, def query) {
+    /**
+     * update JIRA issue field using with given JSON payload (POST)
+     * @returns response
+     * @throws IllegalArgumentException in case of bad JQL query
+     * @throws IOException in case of JIRA connection failure
+     * @see
+     */
+    def post(String path, def jsonBody) {
 
         try {
-            def response = post(path: path, contentType: "application/json", body: body, query: query)
+            def response = post(path: path, contentType: "application/json", body: jsonBody)
             return response
         } catch (groovyx.net.http.HttpResponseException e) {
-        //} catch (Exception e) {
             if (e.response.status == 400) {
                 // HTTP 400: Bad Request, JIRA returned error
                 throw new IllegalArgumentException("JIRA query failed, got HTTP status 400, response data=${e.response.data}", e)
@@ -233,6 +110,28 @@ class JiraRESTClient extends groovyx.net.http.RESTClient {
                 throw new IOException("JIRA connection failed, got HTTP status ${e.response.status}, response data=${e.response.data}", e)
             }
 
+        }
+    }
+
+    /**
+     * update JIRA issue field using with given JSON payload (PUT)
+     * @returns response
+     * @throws IllegalArgumentException in case of bad JQL query
+     * @throws IOException in case of JIRA connection failure
+     * @see
+     */
+    def put(String path, def jsonBody) {
+
+        try {
+            def response = put(path: path, contentType: "application/json", body: jsonBody)
+            return response
+        } catch (groovyx.net.http.HttpResponseException e) {
+            if (e.response.status == 400) {
+                // HTTP 400: Bad Request, JIRA returned error
+                throw new IllegalArgumentException("JIRA query failed, got HTTP status 400, response data=${e.response.data}", e)
+            } else {
+                throw new IOException("JIRA connection failed, got HTTP status ${e.response.status}, response data=${e.response.data}", e)
+            }
         }
     }
 
@@ -258,13 +157,105 @@ class JiraRESTClient extends groovyx.net.http.RESTClient {
     }
 
     /**
-     * Return an Issue instance representing a JIRA issue
+     * Return an object instance representing a JIRA issue
      * @returns Issue
      * @throws
      * @throws
      * @see
      */
-    def issue(String key) {
-        return new Issue(key: key, jira: this)
+    Issue issue(String key) {
+        return new Issue(this, key)
+    }
+
+    /**
+     * Return an object instance representing a JIRA version
+     * @returns Issue
+     * @throws
+     * @throws
+     * @see
+     */
+    Version version (String name, String description) {
+        return new Version(this, name, description)
+    }
+
+    /**
+     * add value to issue's field (array valued field)
+     * @returns response
+     * @throws
+     * @throws
+     * @see
+     */
+    def updateAdd(Issue issue, String field, String value) {
+        def key = issue.key
+
+        log.info ("${field} update for issue ${key}: ${value} ...")
+
+        // update issue, appending version to fixVersion of identified issueKey
+        String jsonBody = String.format(
+                "{\"update\":{\"%s\":[{\"add\":{\"name\":\"%s\"}}]}}",
+                field,
+                value)
+
+        def response = put("/rest/api/2/issue/${key}", jsonBody)
+
+        log.debug "PUT response status: ${response.statusLine}"
+
+        assert response.statusLine.statusCode == 204
+        return response
+    }
+
+    /**
+     * add value to possible list of values of a field
+     * @returns response
+     * @throws
+     * @throws
+     * @see
+     */
+    def addToList(String project, String listName, String listValue, String listValueDescription) {
+
+        def existingValues = get("project/${project}/${listName}")
+
+        def found
+        existingValues.data.find { value ->
+            if (value.name == listValue) {
+                found = listValue
+                return true
+            }
+            return false // keep loopping
+        }
+
+        if (found == listValue) {
+            log.info"${listName} already contains ${listValue}!"
+        } else {
+            log.info"Adding new value ${listValue} to list ${listName} of project ${project} ..."
+
+            /* Example JSON payload for a version creation:
+            {
+                "description": "An excellent version",
+                "name": "New Version 1",
+                "archived": false,
+                "released": true,
+                "releaseDate": "2010-07-06",
+                "userReleaseDate": "6/Jul/2010",
+                "project": "PXA",
+                "projectId": 10000
+            }
+             */
+
+            def jsonBody = [
+                    description: listValueDescription,
+                    name       : listValue,
+                    archived   : false,
+                    released   : true,
+                    releaseDate: new Date().format('yyyy-MM-dd'),
+                    project    : project
+            ]
+
+            def response = post("/rest/api/2/version", jsonBody)
+
+            log.debug "POST response status: ${response.statusLine}"
+            assert response.statusLine.statusCode == 201
+            return response
+        }
     }
 }
