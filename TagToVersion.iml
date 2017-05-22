@@ -9,7 +9,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Jersey-2.2" level="project" />
     <orderEntry type="library" name="javax.json.processing-1.0" level="project" />
-    <orderEntry type="library" name="groovy-2.4.11" level="application" />
     <orderEntry type="library" name="http-builder-0.6" level="project" />
     <orderEntry type="module-library">
       <library>
@@ -168,6 +167,34 @@
       <library>
         <CLASSES>
           <root url="jar://$MODULE_DIR$/lib/org.eclipse.jgit-4.7.0.201704051617-r.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="library" name="groovy-2.4.11" level="application" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/jsch-0.1.54.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/slf4j-api-1.7.25.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/slf4j-simple-1.7.25.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

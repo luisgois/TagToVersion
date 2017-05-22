@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="GroovyCompilerProjectConfiguration">
-    <option name="configScript" value="$PROJECT_DIR$/../../../../nasdata/de/POCs/groovy/bin/groovyc" />
+    <option name="configScript" value="/Developer/groovy-2.4.11/bin/groovyc" />
   </component>
 </project>

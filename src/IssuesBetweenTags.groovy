@@ -45,7 +45,8 @@ import java.util.Map;
  */
 
 
-String REMOTE_URL = "http://git@gramme.cfmu.corp.eurocontrol.int:7990/bitbucket/scm/nco/common_iem.git";
+//String REMOTE_URL = "http://git@gramme.cfmu.corp.eurocontrol.int:7990/bitbucket/scm/nco/common_iem.git";
+String REMOTE_URL="ssh://git@luiss-mac-mini:7999/project_1/rep_1.git";
 
 SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
     @Override

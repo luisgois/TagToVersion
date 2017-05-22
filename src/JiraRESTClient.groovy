@@ -42,8 +42,8 @@ class JiraRESTClient extends groovyx.net.http.RESTClient {
 
         String defaultJiraUrl = properties.DEFAULT_JIRA_URL
         String defaultJiraSearchUrl = "${defaultJiraUrl}/rest/api/latest/"
-        String defaultUsername = properties.DEFAULT_USERNAME
-        String defaultPassword = properties.DEFAULT_PASSWORD
+        String defaultUsername = properties.DEFAULT_JIRA_USERNAME
+        String defaultPassword = properties.DEFAULT_JIRA_PASSWORD
 
         return new JiraRESTClient(defaultJiraSearchUrl, defaultUsername, defaultPassword)
     }
