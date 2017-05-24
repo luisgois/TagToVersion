@@ -7,6 +7,7 @@ import org.apache.http.HttpRequestInterceptor
 import javax.xml.ws.spi.http.HttpContext
 import java.util.Base64;
 
+
 /**
  * JIRA REST client wrapper around groovyx.net.http.RESTClient
  */
